@@ -1,148 +1,155 @@
-# Kubernetes Nginx Deployment & Autoscaling Projesi
+# Kubernetes Nginx Deployment & Autoscaling Project
 
-Bu proje, Kubernetes üzerinde temel yapı taşlarının (**Pod**, **Deployment**, **Service** ve **Horizontal Pod Autoscaler - HPA**) deklaratif yöntemle (YAML dosyaları kullanılarak) nasıl ayağa kaldırılacağını ve yönetileceğini içerir.
+This project demonstrates how to deploy and manage the fundamental building blocks of Kubernetes (**Pod**, **Deployment**, **Service**, and **Horizontal Pod Autoscaler (HPA)**) using a declarative approach with YAML configuration files.
 
-## 📁 Proje Dosya Yapısı
+## 📁 Project Structure
 
-Depoda yer alan yapılandırma dosyaları:
+The repository contains the following configuration files:
 
-* `nginx_pod.yaml`: Tekil bir Nginx Pod tanımı.
-* `deployment.yaml`: 3 kopyalı (replica), CPU kaynak limitli Nginx Deployment tanımı.
-* `service.yaml`: Uygulamayı dış dünyaya açan `NodePort` servisi.
-* `hpa.yaml`: CPU kullanımına göre Pod sayısını otomatik ölçeklendiren (1-10 arası) HPA tanımı.
+- `nginx_pod.yaml`: Defines a standalone Nginx Pod.
+- `deployment.yaml`: Defines an Nginx Deployment with 3 replicas and CPU resource requests.
+- `service.yaml`: Exposes the application to the outside world using a `NodePort` service.
+- `hpa.yaml`: Defines an HPA that automatically scales the number of Pods based on CPU utilization (between 1 and 10 replicas).
 
-## 🛠️ Ön Koşullar
+## 🛠️ Prerequisites
 
-Bu projeyi yerel ortamınızda çalıştırmak için aşağıdaki araçların kurulu olması gerekir:
+To run this project in your local environment, you need to have the following tools installed:
 
-* **Docker Desktop** (Settings > Kubernetes menüsünden *"Enable Kubernetes"* aktif edilmiş) veya **Minikube**
-* **kubectl** (Kubernetes komut satırı aracı)
+- **Docker Desktop** (with Kubernetes enabled under Settings > Kubernetes) or **Minikube**
+- **kubectl** (Kubernetes command-line tool)
 
-### 1. macOS için `kubectl` Kurulumu
+### 1. Installing `kubectl` on macOS
 
-Terminal üzerinden Homebrew ile kurulum:
+Install using Homebrew through the terminal:
 
 ```bash
 brew install kubectl
 ```
 
-### 2. Windows için `kubectl` Kurulumu
+### 2. Installing `kubectl` on Windows
 
-PowerShell veya Komut İstemi (CMD) üzerinden **Winget** veya **Chocolatey** kullanarak kurabilirsiniz (Docker Desktop kuruluysa `kubectl` genellikle beraberinde hazır gelir):
+You can install it using **Winget** or **Chocolatey** through PowerShell or Command Prompt (CMD). If Docker Desktop is already installed, `kubectl` is generally included.
 
 ```powershell
-# Winget ile kurulum (Önerilen)
+# Install using Winget (Recommended)
 winget install -e --id Kubernetes.kubectl
 
-# Veya Chocolatey ile kurulum
+# Alternatively, install using Chocolatey
 choco install kubernetes-cli
 ```
 
-### Küme Doğrulaması (macOS & Windows)
+### Cluster Verification (macOS & Windows)
 
-Kurulum sonrası kümenin çalıştığını doğrulamak için:
+After installation, verify that your Kubernetes cluster is running:
 
 ```bash
 kubectl cluster-info
 kubectl get nodes
 ```
 
-## 🚀 Kurulum ve Çalıştırma Adımları
+## 🚀 Installation and Execution Steps
 
-### 1. Tekil Pod Oluşturma (Opsiyonel Test)
+### 1. Creating a Standalone Pod (Optional Test)
 
-Sadece tek bir Nginx pod'u ayağa kaldırmak için:
+To start a single Nginx Pod:
 
 ```bash
 kubectl apply -f nginx_pod.yaml
 kubectl get pods
 ```
 
-### 2. Deployment Oluşturma
+### 2. Creating a Deployment
 
-Uygulamayı 3 kopya (replica) olarak çalıştırmak ve self-healing (kendi kendini iyileştirme) özelliğini aktif etmek için:
+To run the application with 3 replicas and enable self-healing (automatic recovery):
 
 ```bash
 kubectl apply -f deployment.yaml
 ```
 
-Durumu kontrol etmek için:
+To check the deployment status:
 
 ```bash
 kubectl get deployments
 kubectl get pods
 ```
 
-### 3. Servis (NodePort) ile Dışarıya Açma
+### 3. Exposing the Application Using a NodePort Service
 
-Pod'ları sabit bir port üzerinden dış dünyaya açmak ve yük dengeleme (load balancing) sağlamak için:
+To expose the Pods to the outside world through a fixed port and enable load balancing:
 
 ```bash
 kubectl apply -f service.yaml
 kubectl get services
 ```
 
-Uygulamaya tarayıcı üzerinden erişmek için:
+To access the application through your browser:
 
-* **Docker Desktop (macOS & Windows):** `http://localhost:30007`
-* **Minikube:** `minikube service nginx-service --url`
+- **Docker Desktop (macOS & Windows):** `http://localhost:30007`
+- **Minikube:** Run the following command to obtain the service URL:
 
-## 📈 Horizontal Pod Autoscaler (HPA) Kurulumu
+```bash
+minikube service nginx-service --url
+```
 
-HPA'nın CPU kullanımını okuyabilmesi için kümede **Metrics Server** kurulu olmalıdır.
+## 📈 Setting Up Horizontal Pod Autoscaler (HPA)
 
-### 1. Metrics Server Kurulumu (Yerel Küme İçin)
+For the HPA to retrieve CPU utilization metrics, **Metrics Server** must be installed in the cluster.
+
+### 1. Installing Metrics Server (For Local Clusters)
 
 ```bash
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 ```
 
-Yerel geliştirme ortamında TLS sertifika hatasını aşmak için işletim sisteminize uygun yamayı (patch) uygulayın:
+To bypass TLS certificate verification errors in local development environments, apply the appropriate patch for your operating system:
 
-**macOS / Linux Terminali için:**
+**macOS / Linux Terminal:**
+
 ```bash
 kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
 ```
 
-**Windows (PowerShell / CMD) için:**
+**Windows (PowerShell / CMD):**
+
 ```powershell
-kubectl patch deployment metrics-server -n kube-system --type="json" -p="[{\"op\": \"add\", \"path\": \"/spec/template/spec/containers/0/args/-\", \"value\": \"--kubelet-insecure-tls\"}]"
+kubectl patch deployment metrics-server -n kube-system --type="json" -p="[{\\"op\\": \\"add\\", \\"path\\": \\"/spec/template/spec/containers/0/args/-\\", \\"value\\": \\"--kubelet-insecure-tls\\"}]"
 ```
 
-Metriklerin geldiğini doğrulayın (aktif olması 30-60 saniye sürebilir):
+Verify that metrics are being collected (this may take 30–60 seconds):
 
 ```bash
 kubectl top nodes
 ```
 
-### 2. HPA'yı Aktif Etme
+### 2. Enabling HPA
 
-CPU kullanımı %80'i geçtiğinde pod sayısını maksimum 10'a kadar çıkaran, yük olmadığında minimum 1'e düşüren HPA'yı başlatın:
+Start the HPA, which automatically increases the number of Pods up to a maximum of 10 when CPU utilization exceeds 80%, and scales down to a minimum of 1 when there is little or no load:
 
 ```bash
 kubectl apply -f hpa.yaml
 kubectl get hpa
 ```
 
-### 3. Yük Testi (Autoscaling Testi)
+### 3. Load Testing (Autoscaling Test)
 
-Otomatik ölçeklemeyi test etmek için bir terminalde HPA'yı izlemeye alın:
+To test automatic scaling, start monitoring the HPA in one terminal:
 
 ```bash
 kubectl get hpa -w
 ```
 
-Yeni bir terminal (macOS Terminal veya Windows PowerShell) penceresi açarak servise sürekli istek gönderen geçici bir yük pod'u başlatın:
+Open a second terminal window (macOS Terminal or Windows PowerShell) and start a temporary load-generator Pod that continuously sends requests to the service:
 
 ```bash
 kubectl run -i --tty load-generator --rm --image=busybox:1.28 --restart=Never -- /bin/sh -c "while sleep 0.01; do wget -q -O- http://nginx-service:8080; done"
 ```
 
-## 📄 YAML Dosya İçerikleri
+## 📄 YAML Configuration Files
 
-Depodaki dosyaların içerikleri aşağıdaki gibidir:
+The contents of the configuration files in the repository are shown below.
 
 **`nginx_pod.yaml`**
+
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -150,13 +157,14 @@ metadata:
   name: nginx
 spec:
   containers:
-  - name: webserver
-    image: nginx:latest
-    ports:
-    - containerPort: 80
+    - name: webserver
+      image: nginx:latest
+      ports:
+        - containerPort: 80
 ```
 
 **`deployment.yaml`**
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -175,16 +183,17 @@ spec:
         app: nginx
     spec:
       containers:
-      - name: nginx
-        image: nginx:latest
-        ports:
-        - containerPort: 80
-        resources:
-          requests:
-            cpu: 100m
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
 ```
 
 **`service.yaml`**
+
 ```yaml
 apiVersion: v1
 kind: Service
@@ -195,12 +204,13 @@ spec:
   selector:
     app: nginx
   ports:
-  - port: 8080
-    targetPort: 80
-    nodePort: 30007
+    - port: 8080
+      targetPort: 80
+      nodePort: 30007
 ```
 
 **`hpa.yaml`**
+
 ```yaml
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -214,17 +224,17 @@ spec:
   minReplicas: 1
   maxReplicas: 10
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 80
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
 ```
 
-## 🧹 Temizlik
+## 🧹 Cleanup
 
-Oluşturulan tüm kaynakları kümeden silmek için:
+To delete all the resources created in the cluster, execute the following commands:
 
 ```bash
 kubectl delete -f hpa.yaml
